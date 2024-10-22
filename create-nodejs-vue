@@ -1,73 +1,75 @@
 #!/bin/bash
 
-# Verifica se è stato passato il nome del progetto
+# Check if the project name was provided
 if [ -z "$1" ]; then
   echo "Usage: create-nodejs-vue [project-name]"
   exit 1
 fi
 
-# Nome del progetto
+# Project name
 PROJECT_NAME=$1
 
-# Chiedi all'utente il nome dell'app, usa il nome del progetto come valore predefinito
+# Ask the user for the app name, use the project name as the default value
 read -p "Inserisci il nome dell'app (default: $PROJECT_NAME): " APP_NAME
-APP_NAME=${APP_NAME:-$PROJECT_NAME}  # Se vuoto, usa il nome del progetto
+APP_NAME=${APP_NAME:-$PROJECT_NAME}  # If empty, use the project name
 
-# Crea la cartella del progetto
+# Create the project folder
 mkdir $PROJECT_NAME && cd $PROJECT_NAME
 
 
-# Funzione per mostrare la barra di caricamento
+# Function to show the loading bar
 loading_bar() {
-  local total_steps=40  # Numero totale di passi per la barra
+  local total_steps=40  # Total number of steps for the bar
   local progress=0
 
-  # Mostra la barra di caricamento in loop finché il processo non termina
+  # Show the loading bar in a loop until the process ends
   printf "Creating project: "
   while true; do
-    # Calcola la percentuale
+    # Calculate the percentage
     local percent=$((progress * 100 / total_steps))
 
-    # Costruisci la barra con rettangoli verticali
+    # Build the bar with vertical rectangles
     printf "\rCreating project: "
     for ((i = 0; i < progress; i++)); do
-      printf "█"  # Rettangolo pieno
+      printf "█"   # Full rectangle
     done
     for ((i = progress; i < total_steps; i++)); do
-      printf " "  # Spazio vuoto
+      printf " "  # Empty space
     done
     printf " %d%%" "$percent"
 
-    # Incrementa il progresso
+    # Increment the progress
     progress=$((progress + 1))
     if [ $progress -gt $total_steps ]; then
-      progress=0  # Resetta il progresso per un effetto di loop
+      progress=0  # Reset progress for a looping effect
     fi
-    sleep 0.1  # Ritardo per visualizzare l'animazione
+    sleep 0.1  # Delay to visualize the animation
   done
 }
 
-# Avvia la barra di caricamento in background
+
+# Start the loading bar in the background
 loading_bar &
 
-# Ottieni il PID della barra di caricamento
+
+# Get the PID of the loading bar
 LOADING_BAR_PID=$!
 
 
-# Crea la directory backend
+# Create the backend directory
 mkdir -p backend
 
 
-# Inizializza il progetto Node.js
+# Initialize the Node.js project
 cd backend
 npm init -y > /dev/null 2>&1
 
 
-# Incrementa la barra di caricamento
+# Increment the loading bar
 sleep 0.5
 
 
-# Crea il file package.json manualmente
+# Manually create the package.json file
 cat <<EOL > package.json
 {
   "name": "$PROJECT_NAME-backend",
@@ -86,26 +88,26 @@ cat <<EOL > package.json
 EOL
 
 
-# Installa i pacchetti Node.js e Vite con Vue 3
+# Install Node.js packages and Vite with Vue 3
 npm install --save express dotenv nodemon bootstrap @popperjs/core > /dev/null 2>&1
 
 
-# Crea il file server.js con Express configurato
+# Create the server.js file with configured Express
 cat > server.js <<EOL
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Carica le variabili d'ambiente dal file .env
+// Load environment variables from .env file
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Serve i file statici da frontend/dist
+// Serve static files from frontend/dist
 app.use(express.static(path.join(process.cwd(), 'frontend', 'dist')));
 
-// Middleware per gestire l'errore 404
+// Middleware to handle 404 errors
 app.use((req, res) => {
   res.status(404).sendFile(path.join(process.cwd(), 'frontend', 'dist', 'index.html'));
 });
@@ -116,12 +118,12 @@ app.listen(port, () => {
 EOL
 
 
-# Crea la directory frontend
+# Create the frontend directory
 cd ..
 mkdir -p frontend
 
 
-# Crea il file principale e la configurazione di Vite
+# Create the main file and Vite configuration
 cd frontend
 npx --yes create-vite@latest . --template vue > /dev/null 2>&1
 npm install > /dev/null 2>&1
@@ -129,29 +131,29 @@ npm install vue-router@4 > /dev/null 2>&1
 npm i bootstrap@5.3.3 > /dev/null 2>&1
 
 
-# Crea le directory router e views
+# Create the router and views directories
 mkdir -p src/router
 mkdir -p src/views
 
 
-# Elimina il componente HelloWorld
+# Remove the HelloWorld component
 rm src/components/HelloWorld.vue
 rm public/vite.svg
 
 
-# Aggiungi il logo di NodeJS
-cp ~/bash_scripts/nodejs.svg src/assets/ 
+# Add the NodeJS logo
+cp ~/bash_scripts/scaffolding-script-vue-nodejs/nodejs.svg src/assets/ 
 
 
-# Crea il componente Header
+# Create the Header component
 cat > src/components/Header.vue <<EOL
 <script setup>
 import { useRouter } from 'vue-router';
 
-// Ottieni le rotte dal router
+// Get the routes from the router
 const router = useRouter();
 
-// Filtra le rotte per ottenere solo quelle che hanno un nome 
+// Filter the routes to get only those that have a name 
 const routes = router.options.routes.filter(route => route.name);
 
 defineProps(['appName']);
@@ -167,7 +169,7 @@ defineProps(['appName']);
         <div class="col-auto ms-auto">
           <nav>
             <ul class="list-unstyled d-flex mb-0">
-              <!-- Aggiungi i link dinamicamente in base alle rotte -->
+              <!-- Add links dynamically based on the routes -->
               <li v-for="route in routes" :key="route.name" class="me-3">
                 <a :href="route.path" class="text-white text-decoration-none">{{ route.name }}</a>
               </li>
@@ -183,7 +185,7 @@ defineProps(['appName']);
 EOL
 
 
-# Crea il componente Card
+# Create the Card component
 cat > src/components/Card.vue <<EOL
 <script setup>
 const props = defineProps({
@@ -237,7 +239,7 @@ const props = defineProps({
 EOL
 
 
-# Crea il componente Footer
+# Create the Footer component
 cat > src/components/Footer.vue <<EOL
 <script setup>
 import { computed } from 'vue'
@@ -259,7 +261,7 @@ const currentYear = computed(() => new Date().getFullYear())
 EOL
 
 
-# Crea la Homepage
+# Create the Homepage
 cat > src/views/Homepage.vue <<EOL
 <script setup>
 import Header from '../components/Header.vue'
@@ -267,7 +269,7 @@ import Card from '../components/Card.vue'
 import Footer from '../components/Footer.vue'
 import { ref } from 'vue'
 
-// Carica il nome dell'app dal file .env
+// Load the app name from the .env file
 const appName = ref(import.meta.env.VITE_APP_NAME)
 </script>
 
@@ -304,14 +306,14 @@ const appName = ref(import.meta.env.VITE_APP_NAME)
 EOL
 
 
-# Crea la pagina About Us
+# Create the About Us pages
 cat > src/views/About.vue <<EOL
 <script setup>
 import Header from '../components/Header.vue'
 import Footer from '../components/Footer.vue'
 import { ref } from 'vue'
 
-// Carica il nome dell'app dal file .env
+// Load the app name from the .env file
 const appName = ref(import.meta.env.VITE_APP_NAME)
 
 </script>
@@ -352,7 +354,7 @@ const appName = ref(import.meta.env.VITE_APP_NAME)
 EOL
 
 
-# Modifica il file style.css 
+# Modify the style.css file
 cat <<EOL > src/style.css
 :root {
   --color-primary: #5e548e;
@@ -413,7 +415,7 @@ body {
 EOL
 
 
-# Crea il file router.js
+# Create the router configuration file
 cat > src/router/router.js <<EOL
 import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '../views/HomePage.vue'
@@ -448,7 +450,7 @@ export default router
 EOL
 
 
-# Modifica i file di configurazione di Vite
+# Modify Vite configuration file
 cat > vite.config.js <<EOL
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
@@ -462,7 +464,7 @@ export default defineConfig({
 EOL
 
 
-# Modifica il file main.js
+# Modify main.js file
 cat > src/main.js <<EOL
 import { createApp } from 'vue';
 import App from './App.vue';
@@ -484,7 +486,7 @@ createApp(App).use(router).mount('#app');
 EOL
 
 
-# Modifica i file App.vue
+# Modify App.vue file
 cat > src/App.vue <<EOL
 <script>
 export default {
@@ -498,7 +500,7 @@ export default {
 EOL
 
 
-# Crea il file .gitignore per ignorare node_modules e .env
+# Create .gitignore file
 cat > .gitignore <<EOL
 node_modules/
 .env
@@ -506,7 +508,7 @@ frontend/node_modules/
 frontend/dist/
 EOL
 
-# Crea il file .env con variabili di ambiente generali
+# Create .env file
 cat > .env <<EOL
 VITE_APP_NAME=$APP_NAME
 APP_ENV=development
@@ -524,9 +526,10 @@ DB_PASSWORD=root
 EOL
 
 
-# Ferma la loading bar
+# Finish the loading bar
 kill $LOADING_BAR_PID
-
-
-# Messaggio di completamento
-echo "Node.js + Vue 3 project successfully created in $PROJECT_NAME folder."
+printf "\rProject created successfully!\n"
+printf "To run the server, navigate to the backend directory and use:\n"
+printf "\nnpm run dev\n"
+printf "To run the frontend, navigate to the frontend directory and use:\n"
+printf "\nnpm run dev\n"
