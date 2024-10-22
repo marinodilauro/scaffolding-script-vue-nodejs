@@ -1,0 +1,532 @@
+#!/bin/bash
+
+# Verifica se è stato passato il nome del progetto
+if [ -z "$1" ]; then
+  echo "Usage: create-nodejs-vue [project-name]"
+  exit 1
+fi
+
+# Nome del progetto
+PROJECT_NAME=$1
+
+# Chiedi all'utente il nome dell'app, usa il nome del progetto come valore predefinito
+read -p "Inserisci il nome dell'app (default: $PROJECT_NAME): " APP_NAME
+APP_NAME=${APP_NAME:-$PROJECT_NAME}  # Se vuoto, usa il nome del progetto
+
+# Crea la cartella del progetto
+mkdir $PROJECT_NAME && cd $PROJECT_NAME
+
+
+# Funzione per mostrare la barra di caricamento
+loading_bar() {
+  local total_steps=40  # Numero totale di passi per la barra
+  local progress=0
+
+  # Mostra la barra di caricamento in loop finché il processo non termina
+  printf "Creating project: "
+  while true; do
+    # Calcola la percentuale
+    local percent=$((progress * 100 / total_steps))
+
+    # Costruisci la barra con rettangoli verticali
+    printf "\rCreating project: "
+    for ((i = 0; i < progress; i++)); do
+      printf "█"  # Rettangolo pieno
+    done
+    for ((i = progress; i < total_steps; i++)); do
+      printf " "  # Spazio vuoto
+    done
+    printf " %d%%" "$percent"
+
+    # Incrementa il progresso
+    progress=$((progress + 1))
+    if [ $progress -gt $total_steps ]; then
+      progress=0  # Resetta il progresso per un effetto di loop
+    fi
+    sleep 0.1  # Ritardo per visualizzare l'animazione
+  done
+}
+
+# Avvia la barra di caricamento in background
+loading_bar &
+
+# Ottieni il PID della barra di caricamento
+LOADING_BAR_PID=$!
+
+
+# Crea la directory backend
+mkdir -p backend
+
+
+# Inizializza il progetto Node.js
+cd backend
+npm init -y > /dev/null 2>&1
+
+
+# Incrementa la barra di caricamento
+sleep 0.5
+
+
+# Crea il file package.json manualmente
+cat <<EOL > package.json
+{
+  "name": "$PROJECT_NAME-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "dotenv": "^8.2.0",
+    "nodemon": "^2.0.4"
+  }
+}
+EOL
+
+
+# Installa i pacchetti Node.js e Vite con Vue 3
+npm install --save express dotenv nodemon bootstrap @popperjs/core > /dev/null 2>&1
+
+
+# Crea il file server.js con Express configurato
+cat > server.js <<EOL
+import express from 'express';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Carica le variabili d'ambiente dal file .env
+dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 8080;
+
+// Serve i file statici da frontend/dist
+app.use(express.static(path.join(process.cwd(), 'frontend', 'dist')));
+
+// Middleware per gestire l'errore 404
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(process.cwd(), 'frontend', 'dist', 'index.html'));
+});
+
+app.listen(port, () => {
+  console.log(\`Server is running on http://localhost:\${port}\`);
+});
+EOL
+
+
+# Crea la directory frontend
+cd ..
+mkdir -p frontend
+
+
+# Crea il file principale e la configurazione di Vite
+cd frontend
+npx --yes create-vite@latest . --template vue > /dev/null 2>&1
+npm install > /dev/null 2>&1
+npm install vue-router@4 > /dev/null 2>&1
+npm i bootstrap@5.3.3 > /dev/null 2>&1
+
+
+# Crea le directory router e views
+mkdir -p src/router
+mkdir -p src/views
+
+
+# Elimina il componente HelloWorld
+rm src/components/HelloWorld.vue
+rm public/vite.svg
+
+
+# Aggiungi il logo di NodeJS
+cp ~/bash_scripts/nodejs.svg src/assets/ 
+
+
+# Crea il componente Header
+cat > src/components/Header.vue <<EOL
+<script setup>
+import { useRouter } from 'vue-router';
+
+// Ottieni le rotte dal router
+const router = useRouter();
+
+// Filtra le rotte per ottenere solo quelle che hanno un nome 
+const routes = router.options.routes.filter(route => route.name);
+
+defineProps(['appName']);
+</script>
+
+<template>
+  <header class="bg_primary text-white py-3">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-auto d-flex align-items-center">
+          <h1 class="h5 mb-0">{{ appName }}</h1>
+        </div>
+        <div class="col-auto ms-auto">
+          <nav>
+            <ul class="list-unstyled d-flex mb-0">
+              <!-- Aggiungi i link dinamicamente in base alle rotte -->
+              <li v-for="route in routes" :key="route.name" class="me-3">
+                <a :href="route.path" class="text-white text-decoration-none">{{ route.name }}</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </header>
+</template>
+
+<style scoped></style>
+EOL
+
+
+# Crea il componente Card
+cat > src/components/Card.vue <<EOL
+<script setup>
+const props = defineProps({
+  icon: {
+    type: String,
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  link: {
+    type: String,
+    required: true
+  },
+  buttonText: {
+    type: String,
+    default: 'Learn More'
+  }
+});
+</script>
+
+<template>
+  <div class="card h-100 text-center border-0 shadow-sm">
+    <div class="card-body d-flex flex-column align-items-center">
+      <img :src="props.icon" :alt="props.title" class="mb-3" style="width: 64px; height: 64px;">
+      <h2 class="h5 card-title text_primary mb-3">{{ props.title }}</h2>
+      <p class="card-text flex-grow-1">{{ props.description }}</p>
+      <a :href="link" target="_blank" rel="noopener noreferrer" class="btn btn_primary mt-auto">
+        {{ buttonText }}
+      </a>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.card {
+  background-color: #EDF2FB;
+  border-radius: 16px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+</style>
+EOL
+
+
+# Crea il componente Footer
+cat > src/components/Footer.vue <<EOL
+<script setup>
+import { computed } from 'vue'
+
+const currentYear = computed(() => new Date().getFullYear())
+</script>
+
+<template>
+  <footer class="bg_primary text-white py-3 mt-4">
+    <div class="container text-center">
+      <p class="mb-0">
+        &copy; {{ currentYear }} My Vue3 + NodeJS App. All rights reserved.
+      </p>
+    </div>
+  </footer>
+</template>
+
+<style scoped></style>
+EOL
+
+
+# Crea la Homepage
+cat > src/views/Homepage.vue <<EOL
+<script setup>
+import Header from '../components/Header.vue'
+import Card from '../components/Card.vue'
+import Footer from '../components/Footer.vue'
+import { ref } from 'vue'
+
+// Carica il nome dell'app dal file .env
+const appName = ref(import.meta.env.VITE_APP_NAME)
+</script>
+
+<template>
+  <div class="d-flex flex-column min-vh-100">
+    <Header :appName="appName" />
+    <main class="flex-grow-1 py-4">
+      <div class="container">
+
+        <div class="text-center mb-5">
+          <h2 class="display-4 fw-bold mb-3 text_primary">Welcome to {{ appName }}</h2>
+          <p class="lead fs-3 text_secondary mb-4">Start creating your web-application</p>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-md-6">
+            <Card icon="src/assets/vue.svg" title="Vue 3 Documentation"
+              description="Learn more about Vue 3 and its powerful features for building modern web applications."
+              link="https://v3.vuejs.org/" buttonText="Explore Vue 3" />
+          </div>
+          <div class="col-md-6">
+            <Card icon="src/assets/nodejs.svg" title="Node.js Documentation"
+              description="Discover the capabilities of Node.js for building scalable and efficient server-side applications."
+              link="https://nodejs.org/en/docs/" buttonText="Explore Node.js" />
+          </div>
+        </div>
+      </div>
+    </main>
+    <Footer />
+  </div>
+</template>
+
+<style scoped></style>
+EOL
+
+
+# Crea la pagina About Us
+cat > src/views/About.vue <<EOL
+<script setup>
+import Header from '../components/Header.vue'
+import Footer from '../components/Footer.vue'
+import { ref } from 'vue'
+
+// Carica il nome dell'app dal file .env
+const appName = ref(import.meta.env.VITE_APP_NAME)
+
+</script>
+
+<template>
+  <div class="d-flex flex-column min-vh-100">
+    <Header :appName="appName" />
+    <main class="flex-grow-1">
+      <div class="container py-5">
+        <div class="text-center mb-5">
+          <h2 class="display-4 fw-bold text_primary mb-3">About Us</h2>
+          <p class="lead fs-3 text_secondary mb-4">Empowering developers to create beautiful, responsive web
+            applications</p>
+        </div>
+
+        <div class="row mb-5">
+          <div class="col-lg-6 mb-4 mb-lg-0">
+            <h3 class="h4 text_primary mb-3">Our Mission</h3>
+            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Perferendis iusto sequi nesciunt tempore ad
+              asperiores non neque autem omnis labore sapiente distinctio cum blanditiis consequatur quo harum saepe a,
+              voluptate consectetur minus libero. Soluta, nobis!</p>
+          </div>
+          <div class="col-lg-6">
+            <h3 class="h4 text_primary mb-3">Our Vision</h3>
+            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque quaerat eaque nostrum totam quae animi
+              odit deleniti tempore architecto corrupti nam tenetur nobis, possimus obcaecati repellendus numquam quo
+              labore, sunt sint quidem doloremque at. Nobis?</p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+    <Footer />
+  </div>
+</template>
+
+<style scoped></style>
+EOL
+
+
+# Modifica il file style.css 
+cat <<EOL > src/style.css
+:root {
+  --color-primary: #5e548e;
+  --color-secondary: #be95c4;
+  --color-light: #edf2fb;
+  --color-lighter: #fdfdff;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  place-items: center;
+  min-width: 320px;
+  height: 100vh;
+  background-color: var(--color-lighter);
+}
+
+#app {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.bg_primary {
+  background-color: var(--color-primary);
+}
+
+.text_light {
+  color: var(--color-light);
+}
+
+.text_primary {
+  color: var(--color-primary);
+}
+
+.text_secondary {
+  color: var(--color-secondary);
+}
+
+.btn_primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.btn_primary:hover {
+  background-color: #9f86c0;
+  border-color: #9f86c0;
+  color: #231942;
+}
+EOL
+
+
+# Crea il file router.js
+cat > src/router/router.js <<EOL
+import { createRouter, createWebHistory } from 'vue-router'
+import HomePage from '../views/HomePage.vue'
+import About from '../views/About.vue'
+
+const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    component: HomePage,
+    meta: {
+      label: 'Homepage'
+    }
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: About,
+    meta: {
+      label: 'About Us'
+    }
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+export default router
+
+EOL
+
+
+# Modifica i file di configurazione di Vite
+cat > vite.config.js <<EOL
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+export default defineConfig({
+  plugins: [vue()],
+  define: {
+    'process.env': process.env
+  }
+})
+EOL
+
+
+# Modifica il file main.js
+cat > src/main.js <<EOL
+import { createApp } from 'vue';
+import App from './App.vue';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap';
+import './style.css';
+import router from './router/router.js';
+
+// Aggiungi un global beforeEach per cambiare il titolo della pagina
+router.beforeEach((to, from, next) => {
+  const appName = import.meta.env.VITE_APP_NAME || 'App'
+  const pageTitle = to.meta.title || 'Page'
+  
+  document.title = \`\${appName} - \${pageTitle}\`
+  next()
+})
+
+createApp(App).use(router).mount('#app');
+EOL
+
+
+# Modifica i file App.vue
+cat > src/App.vue <<EOL
+<script>
+export default {
+  name: 'App'
+}
+</script>
+
+<template>
+  <router-view />
+</template>
+EOL
+
+
+# Crea il file .gitignore per ignorare node_modules e .env
+cat > .gitignore <<EOL
+node_modules/
+.env
+frontend/node_modules/
+frontend/dist/
+EOL
+
+# Crea il file .env con variabili di ambiente generali
+cat > .env <<EOL
+VITE_APP_NAME=$APP_NAME
+APP_ENV=development
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+PORT=8080
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=${APP_NAME}_db
+DB_USERNAME=root
+DB_PASSWORD=root
+EOL
+
+
+# Ferma la loading bar
+kill $LOADING_BAR_PID
+
+
+# Messaggio di completamento
+echo "Node.js + Vue 3 project successfully created in $PROJECT_NAME folder."
