@@ -14,8 +14,7 @@ read -p "Inserisci il nome dell'app (default: $PROJECT_NAME): " APP_NAME
 APP_NAME=${APP_NAME:-$PROJECT_NAME}  # If empty, use the project name
 
 # Create the project folder
-mkdir $PROJECT_NAME && cd $PROJECT_NAME
-
+mkdir "$PROJECT_NAME" && cd "$PROJECT_NAME" || { echo "Failed to enter project directory"; exit 1; }
 
 # Function to show the loading bar
 loading_bar() {
@@ -24,7 +23,7 @@ loading_bar() {
 
   # Show the loading bar in a loop until the process ends
   printf "Creating project: "
-  while true; do
+  while [ "$progress" -le "$total_steps" ]; do
     # Calculate the percentage
     local percent=$((progress * 100 / total_steps))
 
@@ -40,37 +39,29 @@ loading_bar() {
 
     # Increment the progress
     progress=$((progress + 1))
-    if [ $progress -gt $total_steps ]; then
-      progress=0  # Reset progress for a looping effect
-    fi
     sleep 0.1  # Delay to visualize the animation
   done
+  printf "\n"  # Move to the next line after completion
 }
-
 
 # Start the loading bar in the background
 loading_bar &
 
-
 # Get the PID of the loading bar
 LOADING_BAR_PID=$!
 
-
 # Create the backend directory
-mkdir -p backend
-
+mkdir -p backend || { echo "Failed to create backend directory"; exit 1; }
+cd backend || { echo "Failed to enter backend directory"; exit 1; }
 
 # Initialize the Node.js project
-cd backend
-npm init -y > /dev/null 2>&1
-
+npm init -y > /dev/null 2>&1 || { echo "Failed to initialize Node.js project"; exit 1; }
 
 # Increment the loading bar
 sleep 0.5
 
-
 # Manually create the package.json file
-cat <<EOL > package.json
+cat > package.json <<EOL
 {
   "name": "$PROJECT_NAME-backend",
   "version": "1.0.0",
@@ -87,10 +78,8 @@ cat <<EOL > package.json
 }
 EOL
 
-
 # Install Node.js packages and Vite with Vue 3
-npm install --save express dotenv nodemon bootstrap @popperjs/core > /dev/null 2>&1
-
+npm install --save express dotenv nodemon bootstrap @popperjs/core > /dev/null 2>&1 || { echo "Failed to install Node.js packages"; exit 1; }
 
 # Create the server.js file with configured Express
 cat > server.js <<EOL
@@ -117,32 +106,27 @@ app.listen(port, () => {
 });
 EOL
 
-
 # Create the frontend directory
-cd ..
-mkdir -p frontend
-
+cd .. || { echo "Failed to return to project root"; exit 1; }
+mkdir -p frontend || { echo "Failed to create frontend directory"; exit 1; }
+cd frontend || { echo "Failed to enter frontend directory"; exit 1; }
 
 # Create the main file and Vite configuration
-cd frontend
-npx --yes create-vite@latest . --template vue > /dev/null 2>&1
-npm install > /dev/null 2>&1
-npm install vue-router@4 > /dev/null 2>&1
-npm i bootstrap@5.3.3 > /dev/null 2>&1
-
+npx --yes create-vite@latest . --template vue > /dev/null 2>&1 || { echo "Failed to create Vite project"; exit 1; }
+npm install > /dev/null 2>&1 || { echo "Failed to install frontend dependencies"; exit 1; }
+npm install vue-router@4 > /dev/null 2>&1 || { echo "Failed to install vue-router"; exit 1; }
+npm install bootstrap@5.3.3 > /dev/null 2>&1 || { echo "Failed to install Bootstrap"; exit 1; }
 
 # Create the router and views directories
-mkdir -p src/router
-mkdir -p src/views
-
+mkdir -p src/router || { echo "Failed to create router directory"; exit 1; }
+mkdir -p src/views || { echo "Failed to create views directory"; exit 1; }
 
 # Remove the HelloWorld component
-rm src/components/HelloWorld.vue
-rm public/vite.svg
-
+rm src/components/HelloWorld.vue || { echo "Failed to remove HelloWorld component"; exit 1; }
+rm public/vite.svg || { echo "Failed to remove Vite logo"; exit 1; }
 
 # Add the NodeJS logo
-cp ~/bash_scripts/scaffolding-script-vue-nodejs/nodejs.svg src/assets/ 
+cp ~/bash_scripts/scaffolding-script-vue-nodejs/nodejs.svg src/assets/ || { echo "Failed to copy NodeJS logo"; exit 1; }
 
 
 # Create the Header component
