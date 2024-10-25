@@ -511,7 +511,8 @@ EOL
 
 
 # Finish the loading bar
-kill $LOADING_BAR_PID
+# kill $LOADING_BAR_PID
+wait $LOADING_BAR_PID 2> /dev/null
 printf "\rProject created successfully!\n"
 printf "To run the server, navigate to the backend directory and use:\n"
 printf "\nnpm run dev\n"
